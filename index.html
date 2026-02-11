@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindBloom - Dashboard</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;700&family=Open+Sans:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Using the new Forest Dashboard style -->
+    <link rel="stylesheet" href="style-dashboard-forest.css">
+    <script src="script.js" defer></script>
+</head>
+
+<body>
+    <div class="animated-bg"></div>
+    <div class="glow-container" id="glow-container"></div>
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+        <div class="logo-area">
+            <img src="logo.png" alt="MindBloom Logo" class="sidebar-logo">
+            <span class="logo-title">MindBloom</span>
+        </div>
+
+        <button class="sidebar-btn" id="add-schedule-btn">+ Add Schedule</button>
+
+        <div class="mini-calendar">
+            <div class="mini-cal-header">
+                <span class="mini-cal-title" id="mini-cal-month-year">September 2025</span>
+                <div class="mini-cal-nav">
+                    <button class="mini-nav-btn" id="mini-prev">&lt;</button>
+                    <button class="mini-nav-btn" id="mini-next">&gt;</button>
+                </div>
+            </div>
+            <div class="mini-cal-grid" id="mini-cal-grid">
+                <span class="mini-cal-day-name">S</span>
+                <span class="mini-cal-day-name">M</span>
+                <span class="mini-cal-day-name">T</span>
+                <span class="mini-cal-day-name">W</span>
+                <span class="mini-cal-day-name">T</span>
+                <span class="mini-cal-day-name">F</span>
+                <span class="mini-cal-day-name">S</span>
+                <!-- Days injected by JS -->
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h4 class="filter-title">My Calendars</h4>
+            <ul class="filter-list" id="filter-list-ul">
+                <!-- Injected by JS -->
+            </ul>
+        </div>
+
+        <div class="todo-section">
+            <h4 class="filter-title">Quick Tasks</h4>
+            <ul class="todo-list" id="todo-list">
+                <!-- Injected by JS -->
+            </ul>
+            <div class="todo-input-group">
+                <input type="text" id="todo-input" placeholder="New task...">
+                <button id="add-todo-btn">+</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Header -->
+        <header class="top-header">
+            <button id="mobile-menu-btn" class="mobile-menu-btn">
+                <span>☰</span>
+            </button>
+
+            <div class="pomodoro-timer-mini" id="pomodoro-mini">
+                <span id="timer-display">25:00</span>
+                <button id="timer-toggle-btn">Start</button>
+            </div>
+
+            <div class="user-actions">
+                <button class="action-btn" id="about-us-btn">About Us</button>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <main class="dashboard-content">
+
+
+            <div class="grid-header">
+                <h2 class="current-date-title" id="main-header-title">September 2025</h2>
+                <!-- View Switcher -->
+                <div class="view-options">
+                    <button class="view-btn" data-view="day">Day</button>
+                    <button class="view-btn" data-view="week">Schedule</button>
+                    <button class="view-btn" data-view="month">Month</button>
+                    <button class="view-btn" data-view="board">Board</button>
+                    <button class="view-btn" data-view="analytics">Stats</button>
+                </div>
+            </div>
+
+            <!-- Weekly/Day Schedule Grid -->
+            <div class="schedule-container" id="schedule-view">
+                <!-- Header Row (Days) -->
+                <div class="week-header" id="week-header-row">
+                    <!-- Injected by JS -->
+                </div>
+
+                <!-- Body (Time Slots + Events) -->
+                <div class="schedule-grid-body" id="schedule-grid-body">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- Month Calendar View (Hidden by default) -->
+            <div class="calendar-container hidden" id="month-view-container">
+                <div class="month-grid-header">
+                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+                <div class="month-grid" id="full-month-grid">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- Kanban Board View (Hidden by default) -->
+            <div class="kanban-board-container hidden" id="board-view-container">
+                <!-- Columns injected by JS -->
+            </div>
+
+            <!-- Analytics View (Hidden by default) -->
+            <div class="analytics-container hidden" id="analytics-view-container">
+                <!-- Injected by JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- About Us Modal -->
+    <div class="modal-overlay hidden" id="about-modal">
+        <div class="modal-card about-card">
+            <div class="modal-header">
+                <h3>About MindBloom</h3>
+                <button class="close-btn" id="close-about-btn">&times;</button>
+            </div>
+            <div class="team-grid">
+                <!-- Yousef -->
+                <div class="team-member">
+                    <div class="member-avatar" style="background-color: var(--primary-blue)">Y</div>
+                    <h4>Yousef</h4>
+                    <p>Full Stack & Lead</p>
+                    <a href="https://yousefammmar.github.io/yousef/" target="_blank" class="member-link">View
+                        Portfolio</a>
+                </div>
+                <!-- Tasneem -->
+                <div class="team-member">
+                    <div class="member-avatar" style="background-color: var(--accent-purple)">T</div>
+                    <h4>Tasneem</h4>
+                    <p>Frontend Specialist</p>
+                    <a href="https://yousefammmar.github.io/Tasneem/" target="_blank" class="member-link">View
+                        Portfolio</a>
+                </div>
+                <!-- Fatema -->
+                <div class="team-member">
+                    <div class="member-avatar" style="background-color: var(--accent-green)">F</div>
+                    <h4>Fatema</h4>
+                    <p>UI/UX Designer</p>
+                    <a href="https://yousefammmar.github.io/Fatema/" target="_blank" class="member-link">View
+                        Portfolio</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Categories Modal -->
+    <div class="modal-overlay hidden" id="category-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Manage Categories</h3>
+                <button class="close-btn" id="close-cat-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+
+                <div class="category-list" id="category-list-container">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Event Modal -->
+    <div id="event-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add New Schedule</h3>
+                <button id="close-modal-btn" class="close-btn">&times;</button>
+            </div>
+            <form id="add-event-form">
+                <input type="hidden" id="event-id-hidden">
+                <div class="form-group">
+                    <label for="event-title">Title</label>
+                    <input type="text" id="event-title" placeholder="e.g. Biology Lecture" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group picker-container" id="date-picker-group">
+                        <label for="event-date">Date</label>
+                        <input type="text" id="event-date" required readonly placeholder="Select Date">
+                        <div class="picker-popover hidden" id="custom-date-popover">
+                            <!-- Calendar injected by JS -->
+                        </div>
+                    </div>
+                    <div class="form-group picker-container" id="time-picker-group">
+                        <label for="event-start">Start Time</label>
+                        <input type="text" id="event-start" required readonly placeholder="Select Time">
+                        <div class="picker-popover hidden" id="custom-time-popover">
+                            <!-- Time list injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-duration">Duration</label>
+                        <select id="event-duration">
+                            <option value="1">1 Hour</option>
+                            <option value="1.5">1.5 Hours</option>
+                            <option value="2">2 Hours</option>
+                            <option value="3">3 Hours</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-type">Category</label>
+                        <select id="event-type">
+                            <option value="lecture">Lecture (Coral)</option>
+                            <option value="lab">Lab (Salmon)</option>
+                            <option value="study">Study (Peach)</option>
+                            <option value="assignment">Assignment (Red)</option>
+                            <option value="default">Personal (Yellow)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-priority">Priority</label>
+                        <select id="event-priority">
+                            <option value="low">Low (Blue)</option>
+                            <option value="normal" selected>Normal (Green)</option>
+                            <option value="high">High (yellow)</option>
+                            <option value="urgent">Urgent (Red)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="event-description">Description</label>
+                    <textarea id="event-description" placeholder="Add details..." rows="3"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-status-input">Initial Status</label>
+                        <select id="event-status-input">
+                            <option value="auto">Automatic (Time-based)</option>
+                            <option value="waiting">Waiting</option>
+                            <option value="progress">In Progress</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="cancel-modal-btn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="toast-container"></div>
+
+</body>
+
+</html>
