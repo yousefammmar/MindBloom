@@ -91,7 +91,22 @@
 
 
             <div class="grid-header">
-                <h2 class="current-date-title" id="main-header-title">September 2025</h2>
+                <div class="header-title-group">
+                    <h2 class="current-date-title" id="main-header-title">September 2025</h2>
+                    <div class="date-selector-wrapper">
+                        <input type="date" id="dashboard-date-input">
+                        <button id="dashboard-date-btn" class="icon-btn" title="Jump to date">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
                 <!-- View Switcher -->
                 <div class="view-options">
                     <button class="view-btn" data-view="day">Day</button>
@@ -257,6 +272,49 @@
                 <div class="form-group">
                     <label for="event-description">Description</label>
                     <textarea id="event-description" placeholder="Add details..." rows="3"></textarea>
+                </div>
+
+                <!-- Recurrence Controls -->
+                <div class="form-group">
+                    <label for="event-recurrence">Repeat</label>
+                    <select id="event-recurrence">
+                        <option value="none">Does not repeat</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+
+                <!-- Weekly Day Selection (shown only when weekly is selected) -->
+                <div class="form-group hidden" id="weekly-days-group">
+                    <label>Repeat on</label>
+                    <div class="weekday-selector">
+                        <button type="button" class="weekday-btn" data-day="0">S</button>
+                        <button type="button" class="weekday-btn" data-day="1">M</button>
+                        <button type="button" class="weekday-btn" data-day="2">T</button>
+                        <button type="button" class="weekday-btn" data-day="3">W</button>
+                        <button type="button" class="weekday-btn" data-day="4">T</button>
+                        <button type="button" class="weekday-btn" data-day="5">F</button>
+                        <button type="button" class="weekday-btn" data-day="6">S</button>
+                    </div>
+                </div>
+
+                <!-- End Date (shown when recurrence is not 'none') -->
+                <div class="form-row hidden" id="recurrence-end-group">
+                    <div class="form-group">
+                        <label for="event-recurrence-end-type">Ends</label>
+                        <select id="event-recurrence-end-type">
+                            <option value="never">Never</option>
+                            <option value="on">On date</option>
+                        </select>
+                    </div>
+                    <div class="form-group picker-container hidden" id="recurrence-end-date-group">
+                        <label for="event-recurrence-end-date">End date</label>
+                        <input type="text" id="event-recurrence-end-date" placeholder="Select end date" readonly>
+                        <div class="picker-popover hidden" id="custom-recurrence-end-date-popover">
+                            <!-- Calendar injected by JS -->
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-row">
