@@ -324,6 +324,36 @@ function setupListeners() {
         renderMiniCalendar();
     });
 
+    // Dashboard Date Picker
+    const dashboardDateInput = document.getElementById("dashboard-date-input");
+    const dashboardDateBtn = document.getElementById("dashboard-date-btn");
+
+    if (dashboardDateInput && dashboardDateBtn) {
+        // Open on button click
+        dashboardDateBtn.addEventListener("click", () => {
+            try {
+                dashboardDateInput.showPicker();
+            } catch (err) {
+                // Fallback for browsers not supporting showPicker
+                dashboardDateInput.focus();
+                dashboardDateInput.click();
+            }
+        });
+
+        // Update state on change
+        dashboardDateInput.addEventListener("change", (e) => {
+            if (e.target.value) {
+                // Fix timezone issue by treating input as YYYY-MM-DD local
+                const [y, m, d] = e.target.value.split('-').map(Number);
+                state.currentDate = new Date(y, m - 1, d);
+                // Also update mini cal logic
+                state.miniCalDate = new Date(state.currentDate);
+                renderMainView();
+                renderMiniCalendar();
+            }
+        });
+    }
+
     dom.miniNext.addEventListener("click", () => {
         state.miniCalDate.setMonth(state.miniCalDate.getMonth() + 1);
         renderMiniCalendar();
@@ -416,10 +446,65 @@ function setupListeners() {
     dom.todoInput.addEventListener("keypress", (e) => {
         if (e.key === "Enter") addTodo();
     });
+
+    // Recurrence Listeners
+    const recurrenceSelect = document.getElementById('event-recurrence');
+    const weeklyDaysGroup = document.getElementById('weekly-days-group');
+    const recurrenceEndGroup = document.getElementById('recurrence-end-group');
+    const recurrenceEndTypeSelect = document.getElementById('event-recurrence-end-type');
+    const recurrenceEndDateGroup = document.getElementById('recurrence-end-date-group');
+
+    if (recurrenceSelect) {
+        recurrenceSelect.addEventListener('change', (e) => {
+            const type = e.target.value;
+
+            // Show/hide weekly days selector
+            if (type === 'weekly') {
+                weeklyDaysGroup.classList.remove('hidden');
+            } else {
+                weeklyDaysGroup.classList.add('hidden');
+            }
+
+            // Show/hide end date options
+            if (type !== 'none') {
+                recurrenceEndGroup.classList.remove('hidden');
+            } else {
+                recurrenceEndGroup.classList.add('hidden');
+                recurrenceEndDateGroup.classList.add('hidden');
+            }
+        });
+    }
+
+    if (recurrenceEndTypeSelect) {
+        recurrenceEndTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'on') {
+                recurrenceEndDateGroup.classList.remove('hidden');
+            } else {
+                recurrenceEndDateGroup.classList.add('hidden');
+            }
+        });
+    }
+
+    // Weekday button toggles
+    if (weeklyDaysGroup) {
+        const weekdayBtns = weeklyDaysGroup.querySelectorAll('.weekday-btn');
+        weekdayBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                btn.classList.toggle('active');
+            });
+        });
+    }
 }
 
 // --- Render Router ---
 function renderMainView() {
+    // Sync Date Picker Input
+    const dateInput = document.getElementById("dashboard-date-input");
+    if (dateInput) {
+        dateInput.value = formatDateKey(state.currentDate);
+    }
+
     // 1. Hide ALL views first
     [dom.scheduleView, dom.monthViewContainer, dom.boardViewContainer, dom.analyticsViewContainer].forEach(el => {
         if (el) {
@@ -558,6 +643,119 @@ function openModal() {
 function closeModal() {
     dom.modalOverlay.classList.add("hidden");
     dom.addEventForm.reset();
+    // Reset recurrence UI
+    document.getElementById('weekly-days-group').classList.add('hidden');
+    document.getElementById('recurrence-end-group').classList.add('hidden');
+    document.getElementById('recurrence-end-date-group').classList.add('hidden');
+    const weekdayBtns = document.querySelectorAll('.weekday-btn');
+    weekdayBtns.forEach(btn => btn.classList.remove('active'));
+}
+
+// --- Recurring Event Helpers ---
+/**
+ * Generates recurring event instances for a date range
+ * @param {Object} event - The parent recurring event
+ * @param {Date} startDate - Start of date range
+ * @param {Date} endDate - End of date range
+ * @returns {Array} Array of generated event instances
+ */
+function generateRecurringInstances(event, startDate, endDate) {
+    if (!event.isRecurring || !event.recurrence || event.recurrence.type === 'none') {
+        return [];
+    }
+
+    const instances = [];
+    const eventDate = new Date(event.date);
+    const recurrence = event.recurrence;
+    const recurrenceEndDate = recurrence.endDate ? new Date(recurrence.endDate) : null;
+
+    // Set time to start of day for comparison
+    eventDate.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    if (recurrenceEndDate) recurrenceEndDate.setHours(0, 0, 0, 0);
+
+    // Start generating from the event's original date or the view start date, whichever is later
+    const generateFrom = eventDate > startDate ? eventDate : startDate;
+
+    let currentDate = new Date(generateFrom);
+
+    // Safety limit: max 730 days (2 years) of  recurrence generation
+    const maxIterations = 730;
+    let iterations = 0;
+
+    while (currentDate <= endDate && iterations < maxIterations) {
+        iterations++;
+
+        // Check if we've passed the recurrence end date
+        if (recurrenceEndDate && currentDate > recurrenceEndDate) {
+            break;
+        }
+
+        // Only generate if current date is >= original event date
+        if (currentDate >= eventDate) {
+            let shouldGenerate = false;
+
+            if (recurrence.type === 'daily') {
+                shouldGenerate = true;
+            } else if (recurrence.type === 'weekly') {
+                const dayOfWeek = currentDate.getDay();
+                shouldGenerate = recurrence.weekdays && recurrence.weekdays.includes(dayOfWeek);
+            } else if (recurrence.type === 'monthly') {
+                shouldGenerate = currentDate.getDate() === eventDate.getDate();
+            }
+
+            if (shouldGenerate) {
+                // Create instance
+                const instance = {
+                    ...event,
+                    id: `${event.id}-${formatDateKey(currentDate)}`, // Unique ID for instance
+                    date: formatDateKey(currentDate),
+                    isRecurringInstance: true,
+                    recurringParentId: event.id
+                };
+                instances.push(instance);
+            }
+        }
+
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return instances;
+}
+
+/**
+ * Filters and merges recurring events with one-time events
+ * @param {Array} events - All events from state
+ * @param {Date} viewStartDate - Start of current view
+ * @param {Date} viewEndDate - End of current view
+ * @returns {Array} Merged event list with recurring instances
+ */
+function getAllEventsForView(events, viewStartDate, viewEndDate) {
+    const allEvents = [];
+
+    events.forEach(event => {
+        if (event.isRecurring) {
+            // Generate instances for this recurring event
+            const instances = generateRecurringInstances(event, viewStartDate, viewEndDate);
+            allEvents.push(...instances);
+        } else {
+            // Add non-recurring event if it's in the date range
+            const eventDate = new Date(event.date);
+            eventDate.setHours(0, 0, 0, 0);
+            const start = new Date(viewStartDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(viewEndDate);
+            end.setHours(0, 0, 0, 0);
+
+            if (eventDate >= start && eventDate <= end) {
+                allEvents.push(event);
+            }
+        }
+    });
+
+    return allEvents;
 }
 
 function saveEvent(e) {
@@ -597,6 +795,37 @@ function saveEvent(e) {
     }
     const startHour = h + (m / 60);
 
+    // Capture Recurrence data
+    const recurrenceType = document.getElementById('event-recurrence').value;
+    const recurrence = {
+        type: recurrenceType,
+        weekdays: [],
+        endDate: null
+    };
+
+    // Get selected weekdays for weekly recurrence
+    if (recurrenceType === 'weekly') {
+        const selectedDays = Array.from(document.querySelectorAll('.weekday-btn.active'));
+        recurrence.weekdays = selectedDays.map(btn => parseInt(btn.getAttribute('data-day')));
+
+        // Validate at least one day is selected for weekly
+        if (recurrence.weekdays.length === 0) {
+            showToast('Please select at least one day for weekly recurrence', 'error');
+            return;
+        }
+    }
+
+    // Get end date if specified
+    const recurrenceEndType = document.getElementById('event-recurrence-end-type').value;
+    if (recurrenceEndType === 'on') {
+        const endDateValue = document.getElementById('event-recurrence-end-date').value;
+        if (!endDateValue) {
+            showToast("Please select an end date for the recurring event.", 'error');
+            return;
+        }
+        recurrence.endDate = endDateValue;
+    }
+
     const eventId = dom.eventIdHidden.value;
     if (eventId) {
         // Edit mode
@@ -612,7 +841,9 @@ function saveEvent(e) {
                 manualStatus: manualStatus,
                 completed: manualStatus === 'done',
                 priority,
-                description
+                description,
+                recurrence,
+                isRecurring: recurrenceType !== 'none'
             };
             showToast("Schedule updated!", "success");
         }
@@ -628,7 +859,9 @@ function saveEvent(e) {
             manualStatus: manualStatus,
             completed: manualStatus === 'done',
             priority,
-            description
+            description,
+            recurrence,
+            isRecurring: recurrenceType !== 'none'
         };
         state.events.push(newEvent);
         showToast("Schedule saved!", "success");
@@ -640,7 +873,19 @@ function saveEvent(e) {
 }
 
 function openEditModal(id) {
-    const evt = state.events.find(e => e.id == id);
+    // Handle recurring instance composite IDs (e.g. "170000-2026-02-20")
+    // If it's a composite ID, the prefix is the parent Event ID.
+    let searchId = id;
+    if (typeof id === 'string' && id.includes('-')) {
+        const parts = id.split('-');
+        // Verify first part is numeric (timestamp)
+        if (parts[0].match(/^\d+$/)) {
+            searchId = parts[0];
+        }
+    }
+
+    // Use loose equality to match string vs number ID
+    const evt = state.events.find(e => e.id == searchId);
     if (!evt) return;
 
     openModal();
@@ -663,8 +908,46 @@ function openEditModal(id) {
     document.getElementById("event-description").value = evt.description || "";
 
     // Update pickers
-    CustomPicker.date.selected = new Date(evt.date);
+    if (CustomPicker.date.instances['event-date']) {
+        CustomPicker.date.instances['event-date'].selected = new Date(evt.date);
+    }
     CustomPicker.time.selected = timeStr;
+
+    // Trigger Recurrence UI updates
+    const recurrenceSelect = document.getElementById('event-recurrence');
+    recurrenceSelect.value = evt.recurrence ? evt.recurrence.type : 'none';
+    recurrenceSelect.dispatchEvent(new Event('change'));
+
+    // Trigger End Date Type UI updates
+    if (evt.recurrence && evt.recurrence.type !== 'none') {
+        const endTypeSelect = document.getElementById('event-recurrence-end-type');
+        // Ensure the select handles the value correctly
+        const hasEndDate = !!evt.recurrence.endDate;
+        endTypeSelect.value = hasEndDate ? 'on' : 'never';
+        endTypeSelect.dispatchEvent(new Event('change'));
+
+        // Populate End Date Input
+        if (hasEndDate) {
+            const endDateInput = document.getElementById('event-recurrence-end-date');
+            endDateInput.value = evt.recurrence.endDate;
+            if (CustomPicker.date.instances['event-recurrence-end-date']) {
+                CustomPicker.date.instances['event-recurrence-end-date'].selected = new Date(evt.recurrence.endDate);
+            }
+        }
+
+        // Select Weekdays
+        if (evt.recurrence.type === 'weekly') {
+            const weekdayBtns = document.querySelectorAll('.weekday-btn');
+            weekdayBtns.forEach(btn => {
+                const day = parseInt(btn.getAttribute('data-day'));
+                if (evt.recurrence.weekdays.includes(day)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+    }
 }
 
 // --- Logic Helpers ---
@@ -846,7 +1129,11 @@ function renderWeeklyGrid(dayCount) {
             setTimeout(() => highlight.remove(), 1000);
         });
 
-        const todaysEvents = state.events.filter(e => e.date === dayKey && state.filters.has(e.type));
+        // Use getAllEventsForView to include recurring events
+        const dayStart = new Date(dayDate);
+        const dayEnd = new Date(dayDate);
+        const allEvents = getAllEventsForView(state.events, dayStart, dayEnd);
+        const todaysEvents = allEvents.filter(e => e.date === dayKey && state.filters.has(e.type));
 
         todaysEvents.forEach(evt => {
             // Render logic...
@@ -871,9 +1158,13 @@ function renderWeeklyGrid(dayCount) {
                 'done': '✅'
             };
 
+            // Add recurring indicator
+            const recurringIndicator = (evt.isRecurring || evt.isRecurringInstance) ? '<span class="recurring-indicator">🔄</span>' : '';
+
             el.innerHTML = `
                  <div class="status-indicator-border ${status}"></div>
                  <div class="status-watermark">${status === 'done' ? '✓' : ''}</div>
+                 ${recurringIndicator}
                  <span class="event-title">${evt.title}</span>
                  <span class="event-time">${formatTime(evt.startHour)} - ${formatTime(evt.startHour + evt.duration)}</span>
                  <button class="event-status-trigger" title="Change Status">${statusIcons[status]}</button>
@@ -935,7 +1226,12 @@ function renderFullMonthGrid() {
     for (let i = 1; i <= lastDay.getDate(); i++) {
         const d = new Date(year, month, i);
         const dateKey = formatDateKey(d);
-        const dayEvents = state.events.filter(e => e.date === dateKey && state.filters.has(e.type));
+
+        // Use getAllEventsForView to include recurring events
+        const dayStart = new Date(d);
+        const dayEnd = new Date(d);
+        const allEvents = getAllEventsForView(state.events, dayStart, dayEnd);
+        const dayEvents = allEvents.filter(e => e.date === dateKey && state.filters.has(e.type));
 
         const el = document.createElement("div");
         el.className = `month-cell ${d.toDateString() === new Date().toDateString() ? 'today' : ''}`;
@@ -983,8 +1279,13 @@ function renderKanbanBoard() {
         const col = document.createElement("div");
         col.className = "kanban-column";
 
-        // Filter events
-        const events = state.events.filter(evt => {
+        // Filter events - use getAllEventsForView for a wide range
+        const today = new Date();
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        const allEvents = getAllEventsForView(state.events, today, oneYearFromNow);
+
+        const events = allEvents.filter(evt => {
             const s = getEventStatus(evt);
             return s === status.id && state.filters.has(evt.type);
         });
@@ -1184,10 +1485,24 @@ function cycleEventStatus(id) {
 // --- Custom Picker Logic ---
 const CustomPicker = {
     date: {
-        currentView: new Date(),
-        selected: null,
-        el: document.getElementById("custom-date-popover"),
-        input: document.getElementById("event-date")
+        // Shared State
+        activeInputId: null, // 'event-date' or 'event-recurrence-end-date'
+
+        // Instance Data
+        instances: {
+            'event-date': {
+                currentView: new Date(),
+                selected: null,
+                el: document.getElementById("custom-date-popover"),
+                input: document.getElementById("event-date")
+            },
+            'event-recurrence-end-date': {
+                currentView: new Date(),
+                selected: null,
+                el: document.getElementById("custom-recurrence-end-date-popover"),
+                input: document.getElementById("event-recurrence-end-date")
+            }
+        }
     },
     time: {
         selected: null, // "HH:MM"
@@ -1196,94 +1511,156 @@ const CustomPicker = {
     },
 
     init() {
-        if (!this.date.input) return;
+        // Initialize Date Pickers
+        Object.keys(this.date.instances).forEach(id => {
+            const instance = this.date.instances[id];
+            if (!instance.input || !instance.el) return;
 
-        // Date Listeners
-        this.date.input.addEventListener("click", (e) => {
-            e.stopPropagation();
-            this.toggle("date");
+            instance.input.addEventListener("click", (e) => {
+                e.stopPropagation();
+                // Close others
+                this.closeAll();
+                this.date.activeInputId = id;
+                this.toggle("date", id);
+            });
         });
 
         // Time Listeners
-        this.time.input.addEventListener("click", (e) => {
-            e.stopPropagation();
-            this.toggle("time");
-        });
+        if (this.time.input) {
+            this.time.input.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.closeAll();
+                this.toggle("time");
+            });
+        }
 
         // Close on outside click
         document.addEventListener("click", (e) => {
-            if (!this.date.el.contains(e.target) && e.target !== this.date.input) {
-                this.date.el.classList.add("hidden");
-            }
-            if (!this.time.el.contains(e.target) && e.target !== this.time.input) {
+            // Check Date Pickers
+            Object.values(this.date.instances).forEach(instance => {
+                if (instance.el && !instance.el.contains(e.target) && e.target !== instance.input) {
+                    instance.el.classList.add("hidden");
+                }
+            });
+
+            // Check Time Picker
+            if (this.time.el && !this.time.el.contains(e.target) && e.target !== this.time.input) {
                 this.time.el.classList.add("hidden");
             }
         });
 
-        this.renderDate();
+        this.renderAllDates();
         this.renderTime();
     },
 
-    toggle(type) {
+    closeAll() {
+        Object.values(this.date.instances).forEach(i => i.el?.classList.add("hidden"));
+        this.time.el?.classList.add("hidden");
+    },
+
+    toggle(type, id) {
         if (type === "date") {
-            this.date.el.classList.toggle("hidden");
-            this.time.el.classList.add("hidden");
+            const instance = this.date.instances[id];
+            if (instance) {
+                instance.el.classList.toggle("hidden");
+                if (!instance.el.classList.contains("hidden")) {
+                    this.renderDate();
+                }
+            }
         } else {
             this.time.el.classList.toggle("hidden");
-            this.date.el.classList.add("hidden");
         }
     },
 
+    renderAllDates() {
+        Object.keys(this.date.instances).forEach(id => {
+            // Temporarily set activeInputId to render initial state if needed
+            // Actually renderDate relies on activeInputId usually for interaction
+            // But for initial render we can just iterate.
+            // Simplified: we only render when opening or navigating.
+        });
+    },
+
     renderDate() {
-        const year = this.date.currentView.getFullYear();
-        const month = this.date.currentView.getMonth();
+        const id = this.date.activeInputId;
+        if (!id) return;
 
-        this.date.el.innerHTML = `
-                <div class="picker-header">
-                <button class="picker-nav-btn" onclick="CustomPicker.navDate(-1)">&lt;</button>
-                <span>${this.date.currentView.toLocaleDateString("en-US", { month: 'long', year: 'numeric' })}</span>
-                <button class="picker-nav-btn" onclick="CustomPicker.navDate(1)">&gt;</button>
+        const instance = this.date.instances[id];
+        if (!instance) return;
+
+        const year = instance.currentView.getFullYear();
+        const month = instance.currentView.getMonth();
+
+        // Update Header
+        instance.el.innerHTML = `
+            <div class="picker-header">
+                <button type="button" class="picker-nav-btn" onclick="CustomPicker.navDate(-1)">&lt;</button>
+                <span>${instance.currentView.toLocaleDateString("en-US", { month: 'long', year: 'numeric' })}</span>
+                <button type="button" class="picker-nav-btn" onclick="CustomPicker.navDate(1)">&gt;</button>
             </div>
-                <div class="picker-grid" id="pkg-grid">
-                    <div class="picker-day-name">S</div><div class="picker-day-name">M</div><div class="picker-day-name">T</div>
-                    <div class="picker-day-name">W</div><div class="picker-day-name">T</div><div class="picker-day-name">F</div>
-                    <div class="picker-day-name">S</div>
-                </div>
-            `;
+            <div class="picker-grid" id="pkg-grid-${id}">
+                <!-- Days injected here -->
+            </div>
+        `;
 
-        const grid = this.date.el.querySelector("#pkg-grid");
-        const firstDay = new Date(year, month, 1).getDay();
+        const grid = document.getElementById(`pkg-grid-${id}`);
+        // ... (rest of logic same but using instance)
+
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDayIndex = new Date(year, month, 1).getDay();
 
-        // Padding
-        for (let i = 0; i < firstDay; i++) {
+        // Day Names
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        dayNames.forEach(name => {
+            const nameEl = document.createElement("div");
+            nameEl.className = "picker-day-name";
+            nameEl.textContent = name;
+            grid.appendChild(nameEl);
+        });
+
+        // Empty slots
+        for (let i = 0; i < firstDayIndex; i++) {
             const empty = document.createElement("div");
-            empty.className = "picker-day other-month";
             grid.appendChild(empty);
         }
 
         // Days
         for (let i = 1; i <= daysInMonth; i++) {
-            const d = new Date(year, month, i);
             const dayEl = document.createElement("div");
             dayEl.className = "picker-day";
-            if (this.date.selected && d.toDateString() === this.date.selected.toDateString()) dayEl.classList.add("selected");
-            if (d.toDateString() === new Date().toDateString()) dayEl.classList.add("today");
             dayEl.textContent = i;
+
+            const cellDate = new Date(year, month, i);
+            const cellDateStr = formatDateKey(cellDate);
+            const todayStr = formatDateKey(new Date());
+
+            if (cellDateStr === todayStr) dayEl.classList.add("today");
+
+            // Check selection
+            if (instance.selected && formatDateKey(instance.selected) === cellDateStr) {
+                dayEl.classList.add("selected");
+            }
 
             dayEl.onclick = (e) => {
                 e.stopPropagation();
-                this.date.selected = d;
-                this.date.input.value = formatDateKey(d);
-                this.date.el.classList.add("hidden");
-                this.renderDate();
+                instance.selected = cellDate;
+                instance.input.value = cellDateStr; // Update Input
+                this.renderDate(); // Re-render to show selection
+                this.toggle("date", id); // Close
+
+                // Trigger change event for validation/UI updates
+                instance.input.dispatchEvent(new Event('change'));
             };
+
             grid.appendChild(dayEl);
         }
     },
 
     navDate(dir) {
-        this.date.currentView.setMonth(this.date.currentView.getMonth() + dir);
+        const id = this.date.activeInputId;
+        if (!id) return;
+        const instance = this.date.instances[id];
+        instance.currentView.setMonth(instance.currentView.getMonth() + dir);
         this.renderDate();
     },
 
