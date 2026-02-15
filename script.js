@@ -707,12 +707,27 @@ function generateRecurringInstances(event, startDate, endDate) {
 
             if (shouldGenerate) {
                 // Create instance
+                const instanceDateKey = formatDateKey(currentDate);
+                const instanceId = `${event.id}-${instanceDateKey}`;
+
+                // Check for exceptions (status overrides)
+                let status = event.manualStatus;
+                let isCompleted = event.completed;
+
+                if (event.recurrenceExceptions && event.recurrenceExceptions[instanceDateKey]) {
+                    const exception = event.recurrenceExceptions[instanceDateKey];
+                    status = exception.manualStatus;
+                    isCompleted = exception.completed;
+                }
+
                 const instance = {
                     ...event,
-                    id: `${event.id}-${formatDateKey(currentDate)}`, // Unique ID for instance
-                    date: formatDateKey(currentDate),
+                    id: instanceId, // Unique ID for instance
+                    date: instanceDateKey,
                     isRecurringInstance: true,
-                    recurringParentId: event.id
+                    recurringParentId: event.id,
+                    manualStatus: status,
+                    completed: isCompleted
                 };
                 instances.push(instance);
             }
@@ -1458,11 +1473,38 @@ function showStatusMenu(id, trigger) {
 }
 
 function setEventStatus(id, newStatus) {
-    const evt = state.events.find(e => e.id === id);
+    // Check for composite ID from recurring instance (e.g. "123-2023-10-27")
+    let eventId = id;
+    let instanceDate = null;
+
+    if (typeof id === 'string' && id.includes('-')) {
+        const parts = id.split('-');
+        // Verify first part is numeric (timestamp)
+        if (parts[0].match(/^\d+$/)) {
+            eventId = parseInt(parts[0]);
+            // Reconstruct date part (could correspond to 'YYYY-MM-DD')
+            instanceDate = parts.slice(1).join('-');
+        }
+    }
+
+    const evt = state.events.find(e => e.id == eventId);
     if (!evt) return;
 
-    evt.manualStatus = newStatus;
-    evt.completed = (newStatus === 'done');
+    if (instanceDate && evt.isRecurring) {
+        // Handle Recurring Instance Exception
+        if (!evt.recurrenceExceptions) {
+            evt.recurrenceExceptions = {};
+        }
+        
+        evt.recurrenceExceptions[instanceDate] = {
+             manualStatus: newStatus,
+             completed: (newStatus === 'done')
+        };
+    } else {
+        // Handle Standard Event or Parent Recurring Event
+        evt.manualStatus = newStatus;
+        evt.completed = (newStatus === 'done');
+    }
 
     saveState();
     renderMainView();
