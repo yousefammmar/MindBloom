@@ -1420,11 +1420,14 @@ function getEventStatus(evt) {
     const currentHour = now.getHours() + (now.getMinutes() / 60);
     const endHour = evt.startHour + evt.duration;
 
-    // It's only 'progress' if we are currently within the time slot today
+    // Auto status logic: waiting → progress → done
+    // If task has ended (current time is past end time), mark as done
+    if (currentHour >= endHour) return 'done';
+
+    // If we are currently within the time slot, mark as in progress
     if (currentHour >= evt.startHour && currentHour < endHour) return 'progress';
 
-    // Otherwise, for any other time (past or future today), it stays 'waiting' 
-    // until the user marks it 'done'.
+    // If task hasn't started yet, keep it waiting
     return 'waiting';
 }
 
@@ -1495,10 +1498,10 @@ function setEventStatus(id, newStatus) {
         if (!evt.recurrenceExceptions) {
             evt.recurrenceExceptions = {};
         }
-        
+
         evt.recurrenceExceptions[instanceDate] = {
-             manualStatus: newStatus,
-             completed: (newStatus === 'done')
+            manualStatus: newStatus,
+            completed: (newStatus === 'done')
         };
     } else {
         // Handle Standard Event or Parent Recurring Event
