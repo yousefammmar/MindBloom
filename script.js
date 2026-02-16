@@ -1908,15 +1908,11 @@ const Pomodoro = {
     completeCycle() {
         this.stop();
 
-        // Play completion sound
-        const audio = new Audio('timer-done.mp3');
-        audio.play().catch(err => console.log('Audio play failed:', err));
+        // Play completion sound using Web Audio API
+        this.playCompletionSound();
 
-        // Stop sound after 10 seconds
-        setTimeout(() => {
-            audio.pause();
-            audio.currentTime = 0;
-        }, 10000);
+        // Show browser notification
+        this.showNotification();
 
         if (this.mode === 'work') {
             showToast("Work cycle complete! Time for a break. 🎉", 'success');
@@ -1929,6 +1925,72 @@ const Pomodoro = {
         }
         this.updateDisplay();
     },
+
+    showNotification() {
+        if ("Notification" in window && Notification.permission === "granted") {
+            const title = this.mode === 'work'
+                ? "🎉 Work Cycle Complete!"
+                : "💪 Break Complete!";
+            const body = this.mode === 'work'
+                ? "Great job! Time for a well-deserved break."
+                : "Break's over! Ready to get back to work?";
+
+            const notification = new Notification(title, {
+                body: body,
+                icon: 'logo.png',
+                badge: 'logo.png',
+                tag: 'pomodoro-timer',
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Auto-close notification after 10 seconds
+            setTimeout(() => notification.close(), 10000);
+
+            // Focus window when notification is clicked
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+        }
+    },
+
+
+    playCompletionSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Create a pleasant three-tone chime
+            const playTone = (frequency, startTime, duration) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+
+                // Envelope for smooth sound
+                gainNode.gain.setValueAtTime(0, startTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + duration);
+            };
+
+            // Play three ascending tones (C5, E5, G5 - a pleasant C major chord)
+            const now = audioContext.currentTime;
+            playTone(523.25, now, 0.3);        // C5
+            playTone(659.25, now + 0.15, 0.3); // E5
+            playTone(783.99, now + 0.3, 0.5);  // G5
+
+        } catch (err) {
+            console.log('Audio playback failed:', err);
+        }
+    },
+
 
     updateDisplay() {
         const mins = Math.floor(this.timeLeft / 60);
