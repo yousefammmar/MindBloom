@@ -81,6 +81,48 @@ const dom = {
     modalTitle: document.querySelector("#event-modal h3")
 };
 
+/**
+ * Splits an event that spans past midnight into multiple daily blocks
+ * @param {Object} event - The original event
+ * @param {Date} viewStart - Start of view range
+ * @param {Date} viewEnd - End of view range
+ * @returns {Array} Array of event blocks for each day
+ */
+function splitEventIntoDailyBlocks(event, viewStart, viewEnd) {
+    const blocks = [];
+    let currentStartHour = event.startHour;
+    let remainingDuration = event.duration;
+    let currentDate = new Date(event.date);
+    currentDate.setHours(0, 0, 0, 0);
+
+    // Limit lookahead/loop to prevent infinite loops on bad data
+    let safetyCounter = 0;
+    while (remainingDuration > 0 && safetyCounter < 40) {
+        safetyCounter++;
+        const hoursInDay = 24 - currentStartHour;
+        const durationThisDay = Math.min(remainingDuration, hoursInDay);
+
+        // Only add if this day is within the requested view range
+        if (currentDate >= viewStart && currentDate <= viewEnd) {
+            const dateKey = formatDateKey(currentDate);
+            blocks.push({
+                ...event,
+                date: dateKey,
+                startHour: currentStartHour,
+                duration: durationThisDay,
+                isOverflowPart: currentStartHour === 0 && event.startHour !== 0
+            });
+        }
+
+        remainingDuration -= durationThisDay;
+        if (remainingDuration <= 0) break;
+
+        currentStartHour = 0; // Starts at midnight on next day
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return blocks;
+}
+
 // --- Constants ---
 const COLORS = {
     // Dynamic colors will be handled by state.categories
@@ -171,7 +213,7 @@ function createGlowBlobs() {
     const container = document.getElementById("glow-container");
     if (!container) return;
 
-    const colors = ["#FF6B6B", "#FFB84D", "#FFD93D", "#FFA07A"];
+    const colors = ["#D4AF37", "#7B2FBE", "#FFD700", "#4B0082", "#C9A84C", "#6A0DAD"];
 
     for (let i = 0; i < 12; i++) {
         const blob = document.createElement("div");
@@ -671,20 +713,26 @@ function generateRecurringInstances(event, startDate, endDate) {
 
     // Set time to start of day for comparison
     eventDate.setHours(0, 0, 0, 0);
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
+    const viewStart = new Date(startDate);
+    viewStart.setHours(0, 0, 0, 0);
+    const viewEnd = new Date(endDate);
+    viewEnd.setHours(0, 0, 0, 0);
+
     if (recurrenceEndDate) recurrenceEndDate.setHours(0, 0, 0, 0);
 
-    // Start generating from the event's original date or the view start date, whichever is later
-    const generateFrom = eventDate > startDate ? eventDate : startDate;
+    // Look back 1 day to catch events that started late yesterday and overflow into today
+    const generateFrom = new Date(viewStart);
+    generateFrom.setDate(generateFrom.getDate() - 1);
+    // But don't go before the original event date
+    const finalStart = generateFrom > eventDate ? generateFrom : eventDate;
 
-    let currentDate = new Date(generateFrom);
+    let currentDate = new Date(finalStart);
 
     // Safety limit: max 730 days (2 years) of  recurrence generation
     const maxIterations = 730;
     let iterations = 0;
 
-    while (currentDate <= endDate && iterations < maxIterations) {
+    while (currentDate <= viewEnd && iterations < maxIterations) {
         iterations++;
 
         // Check if we've passed the recurrence end date
@@ -692,45 +740,45 @@ function generateRecurringInstances(event, startDate, endDate) {
             break;
         }
 
-        // Only generate if current date is >= original event date
-        if (currentDate >= eventDate) {
-            let shouldGenerate = false;
+        let shouldGenerate = false;
 
-            if (recurrence.type === 'daily') {
-                shouldGenerate = true;
-            } else if (recurrence.type === 'weekly') {
-                const dayOfWeek = currentDate.getDay();
-                shouldGenerate = recurrence.weekdays && recurrence.weekdays.includes(dayOfWeek);
-            } else if (recurrence.type === 'monthly') {
-                shouldGenerate = currentDate.getDate() === eventDate.getDate();
+        if (recurrence.type === 'daily') {
+            shouldGenerate = true;
+        } else if (recurrence.type === 'weekly') {
+            const dayOfWeek = currentDate.getDay();
+            shouldGenerate = recurrence.weekdays && recurrence.weekdays.includes(dayOfWeek);
+        } else if (recurrence.type === 'monthly') {
+            shouldGenerate = currentDate.getDate() === eventDate.getDate();
+        }
+
+        if (shouldGenerate) {
+            // Create instance
+            const instanceDateKey = formatDateKey(currentDate);
+            const instanceId = `${event.id}-${instanceDateKey}`;
+
+            // Check for exceptions (status overrides)
+            let status = event.manualStatus;
+            let isCompleted = event.completed;
+
+            if (event.recurrenceExceptions && event.recurrenceExceptions[instanceDateKey]) {
+                const exception = event.recurrenceExceptions[instanceDateKey];
+                status = exception.manualStatus;
+                isCompleted = exception.completed;
             }
 
-            if (shouldGenerate) {
-                // Create instance
-                const instanceDateKey = formatDateKey(currentDate);
-                const instanceId = `${event.id}-${instanceDateKey}`;
+            const instance = {
+                ...event,
+                id: instanceId, // Unique ID for instance
+                date: instanceDateKey,
+                isRecurringInstance: true,
+                recurringParentId: event.id,
+                manualStatus: status,
+                completed: isCompleted
+            };
 
-                // Check for exceptions (status overrides)
-                let status = event.manualStatus;
-                let isCompleted = event.completed;
-
-                if (event.recurrenceExceptions && event.recurrenceExceptions[instanceDateKey]) {
-                    const exception = event.recurrenceExceptions[instanceDateKey];
-                    status = exception.manualStatus;
-                    isCompleted = exception.completed;
-                }
-
-                const instance = {
-                    ...event,
-                    id: instanceId, // Unique ID for instance
-                    date: instanceDateKey,
-                    isRecurringInstance: true,
-                    recurringParentId: event.id,
-                    manualStatus: status,
-                    completed: isCompleted
-                };
-                instances.push(instance);
-            }
+            // Split into daily blocks in case it spans midnight
+            const blocks = splitEventIntoDailyBlocks(instance, viewStart, viewEnd);
+            instances.push(...blocks);
         }
 
         // Move to next day
@@ -749,24 +797,20 @@ function generateRecurringInstances(event, startDate, endDate) {
  */
 function getAllEventsForView(events, viewStartDate, viewEndDate) {
     const allEvents = [];
+    const viewStart = new Date(viewStartDate);
+    viewStart.setHours(0, 0, 0, 0);
+    const viewEnd = new Date(viewEndDate);
+    viewEnd.setHours(23, 59, 59, 999);
 
     events.forEach(event => {
         if (event.isRecurring) {
             // Generate instances for this recurring event
-            const instances = generateRecurringInstances(event, viewStartDate, viewEndDate);
+            const instances = generateRecurringInstances(event, viewStart, viewEnd);
             allEvents.push(...instances);
         } else {
-            // Add non-recurring event if it's in the date range
-            const eventDate = new Date(event.date);
-            eventDate.setHours(0, 0, 0, 0);
-            const start = new Date(viewStartDate);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(viewEndDate);
-            end.setHours(0, 0, 0, 0);
-
-            if (eventDate >= start && eventDate <= end) {
-                allEvents.push(event);
-            }
+            // Split non-recurring event into daily blocks in case it spans midnight
+            const blocks = splitEventIntoDailyBlocks(event, viewStart, viewEnd);
+            allEvents.push(...blocks);
         }
     });
 
@@ -1294,11 +1338,13 @@ function renderKanbanBoard() {
         const col = document.createElement("div");
         col.className = "kanban-column";
 
-        // Filter events - use getAllEventsForView for a wide range
+        // Filter events - use a 30-day window so recurring events don't explode
         const today = new Date();
-        const oneYearFromNow = new Date();
-        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-        const allEvents = getAllEventsForView(state.events, today, oneYearFromNow);
+        today.setHours(0, 0, 0, 0);
+        const thirtyDaysFromNow = new Date(today);
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        thirtyDaysFromNow.setHours(23, 59, 59, 999);
+        const allEvents = getAllEventsForView(state.events, today, thirtyDaysFromNow);
 
         const events = allEvents.filter(evt => {
             const s = getEventStatus(evt);
@@ -1413,21 +1459,20 @@ function getEventStatus(evt) {
     const now = new Date();
     const today = formatDateKey(now);
 
-    // If it's a different day, it won't be 'progress'
-    if (evt.date !== today) return 'waiting';
+    // If it's a past day, it's done
+    if (evt.date < today) return 'done';
 
-    // Same day logic
+    // If it's a future day, it's waiting
+    if (evt.date > today) return 'waiting';
+
+    // Same day logic (today)
     const currentHour = now.getHours() + (now.getMinutes() / 60);
     const endHour = evt.startHour + evt.duration;
 
     // Auto status logic: waiting → progress → done
-    // If task has ended (current time is past end time), mark as done
     if (currentHour >= endHour) return 'done';
-
-    // If we are currently within the time slot, mark as in progress
     if (currentHour >= evt.startHour && currentHour < endHour) return 'progress';
 
-    // If task hasn't started yet, keep it waiting
     return 'waiting';
 }
 
@@ -1773,8 +1818,16 @@ function showToast(message, type = 'info', duration = 4000) {
 window.showToast = showToast;
 
 function updateStats() {
-    const today = formatDateKey(new Date());
-    const todayEvents = state.events.filter(e => e.date === today);
+    const today = new Date();
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Use getAllEventsForView to include overflow tasks from yesterday
+    const allEvents = getAllEventsForView(state.events, todayStart, todayEnd);
+    const todayKey = formatDateKey(today);
+    const todayEvents = allEvents.filter(e => e.date === todayKey);
 
     // Include only TODAY'S events in completion rate
     const completedTodayEvents = todayEvents.filter(e => e.completed).length;
