@@ -135,28 +135,67 @@ body {
 .logo-area {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 32px;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.ramadan-logo-box {
+    background: linear-gradient(135deg, rgba(22, 16, 48, 0.8), rgba(46, 38, 80, 0.6));
+    padding: 25px 25px;
+    border-radius: 500px;
+    /* Fully rounded pill shape */
+    border: 2px solid rgba(212, 175, 55, 0.5);
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.2);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+}
+
+.ramadan-logo-box::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.ramadan-logo-box:hover {
+    transform: translateY(-3px);
+    border-color: rgba(212, 175, 55, 0.8);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.4);
 }
 
 .sidebar-logo {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
+    width: 45px;
+    height: 45px;
+    object-fit: cover;
     border-radius: 50%;
-    -webkit-mask-image: radial-gradient(circle, black 50%, transparent 95%);
-    mask-image: radial-gradient(circle, black 50%, transparent 95%);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.6));
+    transition: transform 0.3s ease;
+}
+
+.ramadan-logo-box:hover .sidebar-logo {
+    transform: rotate(15deg) scale(1.1);
 }
 
 .logo-title {
     font-family: var(--font-heading);
     font-weight: 700;
-    font-size: 22px;
-    letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #FFD700, #C9A84C, #D4AF37);
+    font-size: 26px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #FFD700 0%, #D4AF37 50%, #C9A84C 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
 }
 
 .sidebar-btn {
