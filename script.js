@@ -160,6 +160,25 @@ const HEX_COLORS = {
     'bg-gray': '#9e9e9e'
 };
 
+const STUDY_DUAS = [
+    "اللهمّ يا مسهّل الشديد، و يا مُليِّن الحديد، و يا منجز الوعيد، سهّل عليّ دراستي، اللهمّ بك أدفع ما لا أطيق.",
+    "يا رب قوِّني على الحفظ والفهم، أنت الأعلم سبحانك بسرّي و جهري، و القادر بقدرتك على تيسير عُسري.",
+    "لا إله إلّا الله الحليم الكريم، ربّ العرش العظيم، سهّل عليّ دراستي، وهوِّن عليّ عِبئها، وبارك لي في وقتي وجهدي.",
+    "اللهمّ نسألك أن تفتح علينا فتوح العارفين، يا من يجيب المضطرّ إذا دعاه، يا من يقول للشيء كن فيكون.",
+    "اللهمّ أعِنّي على الدراسة، ولا تجعل قلبي يملّ منها، وكن معي في كل لحظة، ووفقني لما تحب وترضى.",
+    "رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي وَاحْلُلْ عُقْدَةً مِّن لِّسَانِي يَفْقَهُوا قَوْلِي.",
+    "اللهمَّ لا سهلَ إلا ما جعلتَه سهلًا، و أنت تجعلُ الحَزْنَ إذا شئتَ سهلًا.",
+    "اللهمّ أخرجنا من ظلمات الوَهم، وأكرمنا بنور الفهم، وافتح علينا بمعرفة العلم، وحسّن أخلاقنا بالحلم.",
+    "اللهم افتح عليّ فتوح العارفين بحكمتك، وانشر عليّ رحمتك، وذكّرني ما نسيت عند الحاجة إليه.",
+    "اللهم افتح لي أبواب حكمتك، وانشر عليّ رحمتك، وامنن عليّ بالحفظ والفهم، سبحانك لا علم لنا إلا ما علمتنا.",
+    "ربِّ أسألك فهم النبيين، وأسألك حفظ المرسلين، وأن تملأ قلبي بخشيتك، وتسرّني بطاعتك.",
+    "اللهم أكرمني بجودة الحفظ وسرعة الفهم، وثبات العقل، والذهن، والذاكرة.",
+    "اللهمّ ارزقني التوفيق والنجاح في دراستي وأكرمني بالدرجات العالية.",
+    "اللهمّ إني استودعك كلّ ما قرأته وكلّ ما حفظته وتعلمته، فأسألك أن تردّه إلَيَّ عند الحاجة له.",
+    "اللهم يا رب العالمين، إنِّي توكلت عليك وسلمت أمري كلَّه إليك، اللهم اجعل الصَّعب لي سهلًا."
+];
+
+
 // --- Initialization ---
 function init() {
     loadState();
@@ -599,6 +618,87 @@ function renderMainView() {
 }
 
 
+// --- Ramadan Prayer Helpers ---
+let cachedPrayerTimings = null;
+let lastPrayerFetchDate = null;
+let prayerInterval = null;
+
+async function getDailyPrayerTimes() {
+    const today = new Date().toDateString();
+    if (cachedPrayerTimings && lastPrayerFetchDate === today) {
+        return cachedPrayerTimings;
+    }
+    try {
+        const ipRes = await fetch('https://ipapi.co/json/');
+        const ipData = await ipRes.json();
+        const city = ipData.city || 'Amman';
+        const country = ipData.country_name || 'Jordan';
+
+        const res = await fetch(`https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}`);
+        const data = await res.json();
+        cachedPrayerTimings = data.data.timings;
+        lastPrayerFetchDate = today;
+        return cachedPrayerTimings;
+    } catch (e) {
+        console.error('Error fetching prayer times', e);
+        return { Fajr: "05:00", Maghrib: "18:00" };
+    }
+}
+
+async function updatePrayerRemaining() {
+    const el = document.getElementById('prayer-time-remaining');
+    if (!el) return;
+
+    // Clear any existing interval to prevent multiple timers
+    if (prayerInterval) clearInterval(prayerInterval);
+
+    const timings = await getDailyPrayerTimes();
+    if (!timings) {
+        el.innerText = "Prayer times unavailable.";
+        return;
+    }
+
+    const updateText = () => {
+        const now = new Date();
+        const getNextTime = (str) => {
+            const timeStr = str.substring(0, 5);
+            const [h, m] = timeStr.split(':').map(Number);
+            const dt = new Date();
+            dt.setHours(h, m, 0, 0);
+            if (dt < now) dt.setDate(dt.getDate() + 1);
+            return dt;
+        };
+
+        const fajr = getNextTime(timings.Fajr);
+        const maghrib = getNextTime(timings.Maghrib);
+
+        let target = fajr < maghrib ? fajr : maghrib;
+        let name = fajr < maghrib ? "Fajr" : "Maghrib";
+
+        const diffMs = target - now;
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+        const activeEl = document.getElementById('prayer-time-remaining');
+        if (activeEl) {
+            const hStr = hours.toString().padStart(2, '0');
+            const mStr = mins.toString().padStart(2, '0');
+            const sStr = secs.toString().padStart(2, '0');
+            activeEl.innerHTML = `⏱️ Countdown to <b>${name}</b>: <span style="font-family: monospace; letter-spacing: 1px;">${hStr}:${mStr}:${sStr}</span>`;
+        } else {
+            // If the element is gone (view changed), stop the interval
+            if (prayerInterval) {
+                clearInterval(prayerInterval);
+                prayerInterval = null;
+            }
+        }
+    };
+
+    updateText();
+    prayerInterval = setInterval(updateText, 1000); // update every second for high precision
+}
+
 // --- Analytics ---
 function renderAnalytics() {
     // Use the correct DOM reference defined in 'dom' object
@@ -667,6 +767,25 @@ function renderAnalytics() {
     `;
 
     container.appendChild(grid);
+
+    // Append Ramadan Status
+    const randomDua = STUDY_DUAS[Math.floor(Math.random() * STUDY_DUAS.length)];
+    const ramadanBox = document.createElement("div");
+    ramadanBox.className = "ramadan-status-box";
+    ramadanBox.innerHTML = `
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #D4AF37; text-align: center; text-shadow: 0 0 10px rgba(212,175,55,0.4);">🌙 Ramadan Status</h3>
+        <div class="ramadan-content" style="background: rgba(10, 10, 30, 0.4); padding: 25px; border-radius: 12px; border: 1px solid rgba(123, 47, 190, 0.5); box-shadow: 0 4px 15px rgba(0,0,0,0.3); backdrop-filter: blur(5px);">
+            <div style="font-size: 1.3rem; margin-bottom: 20px; text-align: center; color: #EAEAEA; font-family: 'Outfit', sans-serif; line-height: 1.8; min-height: 80px; display: flex; align-items: center; justify-content: center;">
+                "${randomDua}"
+            </div>
+            <div id="prayer-time-remaining" style="text-align: center; font-size: 1.4rem; color: #D4AF37; font-weight: 600; text-shadow: 0 0 10px rgba(212,175,55,0.3);">
+                Calculating prayer times...
+            </div>
+        </div>
+    `;
+    container.appendChild(ramadanBox);
+
+    updatePrayerRemaining();
 }
 
 // --- Modal Logic ---
