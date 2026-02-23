@@ -22,8 +22,8 @@
 
     <!-- Sidebar -->
     <aside class="app-sidebar">
-        <div class="logo-area">
-            <img src="logo.png" alt="MindBloom Logo" class="sidebar-logo">
+        <div class="logo-area ramadan-logo-box">
+            <img src="ramadan_logo.png" alt="MindBloom Logo" class="sidebar-logo">
             <span class="logo-title">MindBloom</span>
         </div>
 
@@ -109,12 +109,17 @@
                 </div>
                 <!-- View Switcher -->
                 <div class="view-options">
-                    <button class="view-btn" data-view="day">Day</button>
+                    <button class="view-btn" data-view="goals">Goals</button>
                     <button class="view-btn" data-view="week">Schedule</button>
                     <button class="view-btn" data-view="month">Month</button>
                     <button class="view-btn" data-view="board">Board</button>
                     <button class="view-btn" data-view="analytics">Stats</button>
                 </div>
+            </div>
+
+            <!-- Goals View (Hidden by default) -->
+            <div class="goals-container hidden" id="goals-view-container">
+                <!-- Injected by JS -->
             </div>
 
             <!-- Weekly/Day Schedule Grid -->
