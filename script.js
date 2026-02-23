@@ -16,9 +16,10 @@ const state = {
     focusTime: 0, // in minutes
     currentDate: new Date(),
     miniCalDate: new Date(),
-    bgView: "week", // 'day', 'week', 'month'
+    bgView: "week", // 'goals', 'week', 'month'
     filters: new Set(["lecture", "lab", "study", "assignment", "default"]),
     sentNotifications: new Set(),
+    dailyGoals: {}, // { "YYYY-MM-DD": [{ text: string, completed: boolean }] }
     categories: [
         { id: 'lecture', name: 'Lecture', color: 'bg-blue' },
         { id: 'lab', name: 'Lab', color: 'bg-green' },
@@ -45,6 +46,7 @@ const dom = {
     monthViewContainer: document.getElementById("month-view-container"),
     boardViewContainer: document.getElementById("board-view-container"),
     analyticsViewContainer: document.getElementById("analytics-view-container"),
+    goalsViewContainer: document.getElementById("goals-view-container"),
     fullMonthGrid: document.getElementById("full-month-grid"),
 
     // View Buttons
@@ -283,6 +285,9 @@ function loadState() {
 
     if (storedTasks) state.tasks = JSON.parse(storedTasks);
     if (storedFocus) state.focusTime = parseFloat(storedFocus);
+
+    const savedGoals = localStorage.getItem("mindbloom_goals");
+    if (savedGoals) state.dailyGoals = JSON.parse(savedGoals);
 
     // Always reset view dates to today on refresh for better UX
     state.currentDate = new Date();
@@ -591,21 +596,25 @@ function renderMainView() {
         dom.analyticsViewContainer.style.display = "block";
         setTimeout(() => dom.analyticsViewContainer.style.opacity = "1", 10);
         renderAnalytics();
+    } else if (state.bgView === "goals") {
+        dom.goalsViewContainer.classList.remove("hidden");
+        dom.goalsViewContainer.style.display = "block";
+        setTimeout(() => dom.goalsViewContainer.style.opacity = "1", 10);
+        renderGoalsView();
     } else {
-        // Default: Week or Day
+        // Default: Week
         dom.scheduleView.classList.remove("hidden");
         dom.scheduleView.style.display = "block";
         setTimeout(() => dom.scheduleView.style.opacity = "1", 10);
 
         // Pass 'days' count logic
-        const isDay = state.bgView === "day";
-        renderWeeklyGrid(isDay ? 1 : 7);
+        renderWeeklyGrid(7);
     }
 
     // Smooth fade-in
-    const containers = [dom.scheduleView, dom.monthViewContainer, dom.boardViewContainer, dom.analyticsViewContainer];
+    const containers = [dom.scheduleView, dom.monthViewContainer, dom.boardViewContainer, dom.analyticsViewContainer, dom.goalsViewContainer];
     containers.forEach(c => {
-        if (!c.classList.contains("hidden")) {
+        if (c && !c.classList.contains("hidden")) {
             c.style.opacity = "0";
             setTimeout(() => {
                 c.style.transition = "opacity 0.3s ease";
@@ -707,39 +716,28 @@ function renderAnalytics() {
 
     container.innerHTML = '';
 
-    // 1. Calculate Stats
-    let totalHours = 0;
-    let totalEvents = 0;
-    let completedEvents = 0;
-    const statusCounts = { 'waiting': 0, 'progress': 0, 'done': 0 };
+    // 1. Calculate Stats FOR TODAY ONLY
+    const todayStr = formatDateKey(new Date());
+    const todayEvents = state.events.filter(e => e.date === todayStr);
 
-    state.events.forEach(evt => {
-        if (!state.filters.has(evt.type)) return;
+    let todayHours = 0;
+    let todayDone = 0;
 
-        const duration = evt.duration || 1;
-        totalHours += duration;
-        totalEvents++;
-
-        if (evt.completed) completedEvents++;
-
-        const status = getEventStatus(evt);
-        if (statusCounts[status] !== undefined) {
-            statusCounts[status]++;
-        }
+    todayEvents.forEach(evt => {
+        todayHours += (evt.duration || 1);
+        if (evt.completed || getEventStatus(evt) === 'done') todayDone++;
     });
 
-    const completionRate = totalEvents > 0 ? Math.round((completedEvents / totalEvents) * 100) : 0;
+    const todayPending = todayEvents.length - todayDone;
+
+    const hrs = Math.floor(state.focusTime / 60);
+    const mins = Math.round(state.focusTime % 60);
 
     // 2. Render Header
     const title = document.createElement("h3");
     title.className = "analytics-title";
-    title.innerHTML = `Running Analytics`;
+    title.innerHTML = `Today's Progress`;
     container.appendChild(title);
-
-    if (totalEvents === 0) {
-        container.innerHTML += `<div class="empty-chart">No schedules found.</div>`;
-        return;
-    }
 
     // 3. Render Stats Grid
     const grid = document.createElement("div");
@@ -748,7 +746,7 @@ function renderAnalytics() {
     // Helper to create card
     const createCard = (label, value, subtext, icon, colorClass) => {
         return `
-            <div class="stat-card ${colorClass}">
+            <div class="stat-card ${colorClass}" style="flex: 1; min-width: 200px;">
                 <div class="stat-icon">${icon}</div>
                 <div class="stat-content">
                     <div class="stat-value">${value}</div>
@@ -760,10 +758,10 @@ function renderAnalytics() {
     };
 
     grid.innerHTML = `
-        ${createCard('Total Focus', `${totalHours}h`, 'Scheduled Time', '⏱️', 'stat-blue')}
-        ${createCard('Completion', `${completionRate}%`, `${completedEvents}/${totalEvents} Tasks`, '✅', 'stat-green')}
-        ${createCard('To Do', statusCounts.waiting, 'Pending Tasks', '⏳', 'stat-gray')}
-        ${createCard('In Progress', statusCounts.progress, 'Active Now', '⚡', 'stat-yellow')}
+        ${createCard('Focused Today', `${hrs}h ${mins}m`, 'Total Study Time', '⏱️', 'stat-blue')}
+        ${createCard('Tasks Done', todayDone, 'Completed Today', '✅', 'stat-green')}
+        ${createCard('Still Pending', todayPending, 'Remaining Today', '⏳', 'stat-yellow')}
+        ${createCard('Today\'s Load', `${todayHours}h`, 'Scheduled Work', '📚', 'stat-purple')}
     `;
 
     container.appendChild(grid);
@@ -1427,16 +1425,103 @@ function renderFullMonthGrid() {
 
         el.addEventListener("click", () => {
             state.currentDate = d;
-            state.bgView = "day"; // Switch to day view on click? Or just select? 
-            // Let's switch to Day view for detail
-            dom.viewBtns.forEach(b => b.classList.remove("active"));
-            // Find day button?
-            // Just update state
+            state.bgView = "week"; // Switched from 'day' to 'week'
+            dom.viewBtns.forEach(b => {
+                b.classList.remove("active");
+                if (b.getAttribute("data-view") === "week") b.classList.add("active");
+            });
             renderMainView();
         });
 
         dom.fullMonthGrid.appendChild(el);
     }
+}
+
+// --- Goals View Logic ---
+function renderGoalsView() {
+    const container = dom.goalsViewContainer;
+    if (!container) return;
+
+    const todayStr = formatDateKey(state.currentDate);
+    if (!state.dailyGoals[todayStr]) state.dailyGoals[todayStr] = [];
+
+    container.innerHTML = `
+        <div class="goals-wrapper" style="max-width: 600px; margin: 40px auto; padding: 40px; background: rgba(22, 16, 48, 0.8); border-radius: 20px; border: 1px solid var(--border-light); box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(15px);">
+            <h2 style="font-family: var(--font-heading); color: var(--primary-blue); text-align: center; margin-bottom: 8px; font-size: 2rem;">Daily Goals</h2>
+            <p style="text-align: center; color: var(--text-gray); margin-bottom: 30px; font-size: 1rem;">${todayStr}</p>
+            
+            <div class="goal-input-group" style="display: flex; gap: 12px; margin-bottom: 40px;">
+                <input type="text" id="goal-input-field" placeholder="Target for today..." 
+                    style="flex: 1; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--border-light); background: rgba(13, 10, 30, 0.8); color: var(--text-dark); font-size: 1rem; outline: none; transition: 0.3s; border-color: rgba(212, 175, 55, 0.3);">
+                <button id="add-goal-button" style="background: var(--primary-blue); border: none; padding: 0 24px; border-radius: 12px; font-weight: 700; cursor: pointer; color: #161030; font-size: 0.9rem; transition: 0.3s;">Add Goal</button>
+            </div>
+
+            <ul id="goals-list" style="list-style: none; display: flex; flex-direction: column; gap: 15px; padding: 0;"></ul>
+        </div>
+    `;
+
+    const list = container.querySelector("#goals-list");
+    const input = container.querySelector("#goal-input-field");
+    const btn = container.querySelector("#add-goal-button");
+
+    const refreshList = () => {
+        list.innerHTML = "";
+        if (state.dailyGoals[todayStr].length === 0) {
+            list.innerHTML = `<li style="text-align: center; color: var(--text-gray); padding: 40px 0; font-style: italic; opacity: 0.6;">No goals set for this day yet.</li>`;
+            return;
+        }
+        state.dailyGoals[todayStr].forEach((goal, idx) => {
+            const li = document.createElement("li");
+            li.style.cssText = `display: flex; align-items: center; gap: 15px; padding: 16px 20px; background: rgba(255,255,255,0.03); border-radius: 14px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.05); cursor: pointer;`;
+            li.innerHTML = `
+                <div class="goal-check" style="width: 24px; height: 24px; border: 2px solid ${goal.completed ? 'var(--accent-green)' : 'var(--text-gray)'}; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: ${goal.completed ? 'var(--accent-green)' : 'transparent'}; transition: 0.3s;">
+                    ${goal.completed ? '<span style="color: white; font-weight: bold; font-size: 14px;">✓</span>' : ''}
+                </div>
+                <span style="flex: 1; color: var(--text-dark); font-size: 1.05rem; transition: 0.3s; ${goal.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">${goal.text}</span>
+                <button class="del-goal" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; font-size: 20px; padding: 5px; opacity: 0.6; transition: 0.3s;">&times;</button>
+            `;
+
+            li.onclick = (e) => {
+                if (e.target.closest('.del-goal')) return;
+                goal.completed = !goal.completed;
+                saveGoals();
+                refreshList();
+                updateStats();
+            };
+
+            li.querySelector(".del-goal").onclick = (e) => {
+                e.stopPropagation();
+                state.dailyGoals[todayStr].splice(idx, 1);
+                saveGoals();
+                refreshList();
+                updateStats();
+            };
+
+            li.onmouseover = () => { li.style.borderColor = 'rgba(212, 175, 55, 0.4)'; li.style.background = 'rgba(255,255,255,0.06)'; };
+            li.onmouseout = () => { li.style.borderColor = 'rgba(255,255,255,0.05)'; li.style.background = 'rgba(255,255,255,0.03)'; };
+
+            list.appendChild(li);
+        });
+    };
+
+    btn.onclick = () => {
+        const text = input.value.trim();
+        if (text) {
+            state.dailyGoals[todayStr].push({ text, completed: false });
+            input.value = "";
+            saveGoals();
+            refreshList();
+            updateStats();
+        }
+    };
+
+    input.onkeypress = (e) => { if (e.key === "Enter") btn.onclick(); };
+
+    refreshList();
+}
+
+function saveGoals() {
+    localStorage.setItem("mindbloom_goals", JSON.stringify(state.dailyGoals));
 }
 
 
