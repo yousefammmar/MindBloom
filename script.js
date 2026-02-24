@@ -572,7 +572,7 @@ function renderMainView() {
     }
 
     // 1. Hide ALL views first
-    [dom.scheduleView, dom.monthViewContainer, dom.boardViewContainer, dom.analyticsViewContainer].forEach(el => {
+    [dom.scheduleView, dom.monthViewContainer, dom.boardViewContainer, dom.analyticsViewContainer, dom.goalsViewContainer].forEach(el => {
         if (el) {
             el.classList.add("hidden");
             el.style.display = "none"; // Ensure display:none is applied
