@@ -17,6 +17,7 @@ const state = {
     currentDate: new Date(),
     miniCalDate: new Date(),
     bgView: "week", // 'goals', 'week', 'month'
+    boardFilter: 'today', // 'today', 'month'
     filters: new Set(["lecture", "lab", "study", "assignment", "default"]),
     sentNotifications: new Set(),
     dailyGoals: {}, // { "YYYY-MM-DD": [{ text: string, completed: boolean }] }
@@ -1532,23 +1533,54 @@ function renderKanbanBoard() {
     dom.boardViewContainer.classList.remove("list-view-container");
     dom.boardViewContainer.classList.add("kanban-view-container");
 
+    // 1. Add Filter Controls
+    const filtersDiv = document.createElement("div");
+    filtersDiv.className = "board-filters";
+    filtersDiv.innerHTML = `
+        <button class="board-filter-btn ${state.boardFilter === 'today' ? 'active' : ''}" data-filter="today">Today</button>
+        <button class="board-filter-btn ${state.boardFilter === 'month' ? 'active' : ''}" data-filter="month">Rest of Month</button>
+    `;
+    dom.boardViewContainer.appendChild(filtersDiv);
+
+    // Filter Button Handlers
+    filtersDiv.querySelectorAll(".board-filter-btn").forEach(btn => {
+        btn.onclick = () => {
+            state.boardFilter = btn.getAttribute("data-filter");
+            renderKanbanBoard();
+        };
+    });
+
+    // 2. Columns Container
+    const columnsContainer = document.createElement("div");
+    columnsContainer.className = "kanban-columns-container";
+    dom.boardViewContainer.appendChild(columnsContainer);
+
     const statuses = [
         { id: 'waiting', title: 'To Do', color: '#C9B8A3' },
         { id: 'progress', title: 'In Progress', color: '#FFD93D' },
         { id: 'done', title: 'Done', color: '#69f0ae' }
     ];
 
+    // Determine Date Range
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let rangeStart = new Date(today);
+    let rangeEnd = new Date(today);
+
+    if (state.boardFilter === 'today') {
+        rangeEnd.setHours(23, 59, 59, 999);
+    } else {
+        // Rest of the month
+        rangeEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        rangeEnd.setHours(23, 59, 59, 999);
+    }
+
+    const allEvents = getAllEventsForView(state.events, rangeStart, rangeEnd);
+
     statuses.forEach(status => {
         const col = document.createElement("div");
         col.className = "kanban-column";
-
-        // Filter events - use a 30-day window so recurring events don't explode
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const thirtyDaysFromNow = new Date(today);
-        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-        thirtyDaysFromNow.setHours(23, 59, 59, 999);
-        const allEvents = getAllEventsForView(state.events, today, thirtyDaysFromNow);
 
         const events = allEvents.filter(evt => {
             const s = getEventStatus(evt);
@@ -1582,7 +1614,7 @@ function renderKanbanBoard() {
 
             // Only update if dropping into a different status
             if (eventId) {
-                setEventStatus(parseInt(eventId), status.id);
+                setEventStatus(eventId, status.id);
             }
         });
 
@@ -1593,7 +1625,8 @@ function renderKanbanBoard() {
 
             // Drag Start
             card.addEventListener("dragstart", (e) => {
-                e.dataTransfer.setData("text/plain", evt.id);
+                const dragId = evt.isRecurringInstance ? evt.id : evt.id.toString();
+                e.dataTransfer.setData("text/plain", dragId);
                 e.dataTransfer.effectAllowed = "move";
                 setTimeout(() => card.classList.add("dragging"), 0);
             });
@@ -1627,9 +1660,10 @@ function renderKanbanBoard() {
             body.appendChild(card);
         });
 
-        dom.boardViewContainer.appendChild(col);
+        columnsContainer.appendChild(col);
     });
 }
+
 
 // --- CRUD Actions ---
 function deleteEvent(id) {
