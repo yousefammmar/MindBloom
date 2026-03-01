@@ -2087,11 +2087,53 @@ body {
 /* Kanban Board Columns */
 .kanban-view-container {
     display: flex;
-    gap: 24px;
+    flex-direction: column;
+    gap: 20px;
     height: 100%;
-    overflow-x: auto;
     padding-bottom: 16px;
 }
+
+.board-filters {
+    display: flex;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 6px;
+    border-radius: var(--radius-md);
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.board-filter-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 20px;
+    border-radius: var(--radius-sm);
+    color: var(--text-gray);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.board-filter-btn:hover {
+    color: var(--text-dark);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.board-filter-btn.active {
+    background: var(--primary-blue);
+    color: #1A2332;
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+}
+
+.kanban-columns-container {
+    display: flex;
+    gap: 24px;
+    flex: 1;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
 
 .kanban-column {
     flex: 1;
