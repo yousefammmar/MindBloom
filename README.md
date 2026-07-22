@@ -21,10 +21,9 @@ mindbloom/
     └── style-*.css    Forest & Ramadan themes
 ```
 
-## Running it
+## Running locally
 
 ```bash
-cd backend
 npm install
 npm start
 ```
@@ -35,21 +34,19 @@ The server starts on **http://localhost:4000**:
 - `/api/...` → the REST API
 
 A SQLite database file (`backend/mindbloom.db`) is created automatically on
-first run — no external database to set up.
+first run — no external database setup needed.
 
-For development with auto-restart on file changes:
+## Deployment Options
 
-```bash
-npm run dev
-```
+### 1. Full-Stack Cloud Deployment (Backend + SQLite Database)
+To deploy the entire Express backend, SQLite database, and frontend UI to a live URL:
+- **Render**: Connect `https://github.com/yousefammmar/MindBloom` on [Render.com](https://render.com). It will automatically detect `render.yaml` and deploy the live Node.js Express server + SQLite database.
+- **Railway / Koyeb / Fly.io**: Import the GitHub repo and run `npm start`.
 
-### Configuration
+### 2. Static Frontend Deployment (GitHub Pages)
+- **Live Demo**: [https://yousefammmar.github.io/MindBloom/](https://yousefammmar.github.io/MindBloom/)
+- Includes a client-side localStorage fallback for demoing the full interface on static hosting without a backend.
 
-Copy `backend/.env.example` to `backend/.env` and set a real `JWT_SECRET`
-before deploying anywhere public. Locally the app works out of the box with
-a development default.
-
-## How auth & data work
 
 - **Accounts**: email + password, hashed with bcrypt, sessions via JWT
   (stored in the browser's localStorage as `mindbloom_token`, sent as a
