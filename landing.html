@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindBloom — Study with clarity, not chaos</title>
+<meta name="description" content="MindBloom is a calm, focused academic dashboard: schedule, Pomodoro timer, tasks and goals, all in one place.">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-body:#0a111a; --bg-card:#111c2a; --bg-card2:#172436;
+    --border:rgba(16,185,129,.16);
+    --text:#f8fafc; --text-dim:#94a3b8;
+    --primary:#10b981; --primary-light:#34d399;
+    --pink:#f43f5e; --cyan:#06b6d4; --gold:#f59e0b;
+    --font-h:'Outfit',sans-serif; --font-b:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg-body); color:var(--text); font-family:var(--font-b);
+    line-height:1.6; overflow-x:hidden;
+  }
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+
+  /* ambient bloom glow */
+  .bloom-field{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+  .bloom-field span{
+    position:absolute; border-radius:50%; filter:blur(70px); opacity:.20;
+    animation:drift 26s ease-in-out infinite;
+  }
+  .bloom-field span:nth-child(1){width:420px;height:420px; background:var(--primary); top:-120px; left:-100px;}
+  .bloom-field span:nth-child(2){width:360px;height:360px; background:var(--pink); top:280px; right:-140px; animation-delay:-8s;}
+  .bloom-field span:nth-child(3){width:300px;height:300px; background:var(--cyan); bottom:-100px; left:30%; animation-delay:-16s;}
+  @keyframes drift{
+    0%,100%{transform:translate(0,0) scale(1);}
+    50%{transform:translate(30px,-40px) scale(1.1);}
+  }
+
+  /* nav */
+  header{
+    position:sticky; top:0; z-index:20;
+    background:rgba(10,17,26,.75); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border);
+  }
+  nav{display:flex; align-items:center; justify-content:space-between; padding:18px 32px; max-width:1180px; margin:0 auto;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--font-h); font-weight:700; font-size:1.15rem;}
+  .brand img{width:32px; height:32px; border-radius:9px;}
+  .nav-links{display:flex; gap:32px; font-size:.92rem; color:var(--text-dim);}
+  .nav-links a:hover{color:var(--text);}
+  .nav-cta{display:flex; gap:12px; align-items:center;}
+  .btn{
+    font-family:var(--font-h); font-weight:600; font-size:.9rem;
+    padding:10px 20px; border-radius:10px; border:1px solid transparent;
+    cursor:pointer; transition:.2s transform ease, .2s box-shadow ease, .2s opacity ease;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn-primary{background:linear-gradient(135deg,var(--primary),var(--cyan)); color:#04140f; box-shadow:0 8px 24px -8px rgba(16,185,129,.6);}
+  .btn-ghost{color:var(--text); border-color:var(--border);}
+  .btn-ghost:hover{background:var(--bg-card);}
+  .btn-lg{padding:14px 26px; font-size:1rem;}
+
+  /* hero */
+  .hero{position:relative; z-index:1; padding:96px 0 60px;}
+  .hero-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:56px; align-items:center;}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px; font-size:.78rem; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--primary-light); border:1px solid var(--border);
+    padding:6px 14px; border-radius:100px; background:rgba(16,185,129,.06);
+  }
+  h1{
+    font-family:var(--font-h); font-weight:700; font-size:clamp(2.3rem,4.6vw,3.6rem);
+    line-height:1.08; margin:22px 0 20px; letter-spacing:-.01em;
+  }
+  h1 .accent{color:var(--primary-light);}
+  .hero-sub{font-size:1.08rem; color:var(--text-dim); max-width:520px; margin-bottom:32px;}
+  .hero-actions{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:30px;}
+  .hero-note{font-size:.85rem; color:var(--text-dim);}
+  .hero-note strong{color:var(--text);}
+
+  /* hero visual: schedule preview card */
+  .preview-card{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:20px;
+    padding:22px; box-shadow:0 30px 80px -30px rgba(0,0,0,.6);
+    position:relative;
+  }
+  .preview-card::before{
+    content:''; position:absolute; inset:-1px; border-radius:20px; padding:1px;
+    background:linear-gradient(135deg, rgba(16,185,129,.5), rgba(6,182,212,0));
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none;
+  }
+  .preview-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .preview-top .dots span{width:8px;height:8px;border-radius:50%; display:inline-block; margin-right:5px; background:var(--text-dim); opacity:.4;}
+  .preview-timer{font-family:var(--font-h); font-weight:700; font-size:1.4rem; color:var(--primary-light);}
+  .preview-row{
+    display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:12px;
+    background:var(--bg-card2); margin-bottom:9px; font-size:.87rem; border-left:3px solid var(--primary);
+  }
+  .preview-row.pink{border-left-color:var(--pink);}
+  .preview-row.cyan{border-left-color:var(--cyan);}
+  .preview-row.gold{border-left-color:var(--gold);}
+  .preview-row .time{color:var(--text-dim); font-variant-numeric:tabular-nums; width:52px; flex-shrink:0;}
+  .preview-row .check{
+    width:16px;height:16px;border-radius:5px; border:1.5px solid var(--text-dim); flex-shrink:0;
+  }
+  .preview-row.done .check{background:var(--primary); border-color:var(--primary);}
+  .preview-row.done span.title{color:var(--text-dim); text-decoration:line-through;}
+  .preview-stats{display:flex; gap:10px; margin-top:16px;}
+  .stat-chip{flex:1; background:var(--bg-card2); border-radius:12px; padding:12px; text-align:center;}
+  .stat-chip b{display:block; font-family:var(--font-h); font-size:1.15rem; color:var(--primary-light);}
+  .stat-chip span{font-size:.72rem; color:var(--text-dim);}
+
+  /* sections */
+  section{position:relative; z-index:1;}
+  .section-head{text-align:center; max-width:640px; margin:0 auto 52px;}
+  .section-head .eyebrow{margin-bottom:16px;}
+  .section-head h2{font-family:var(--font-h); font-weight:700; font-size:clamp(1.7rem,3vw,2.4rem); margin-bottom:14px;}
+  .section-head p{color:var(--text-dim); font-size:1.02rem;}
+
+  .features{padding:90px 0;}
+  .feature-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px;}
+  .feature-card{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:28px;
+    transition:.25s transform ease, .25s border-color ease;
+  }
+  .feature-card:hover{transform:translateY(-4px); border-color:rgba(16,185,129,.4);}
+  .feature-icon{
+    width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-size:1.3rem; margin-bottom:16px;
+  }
+  .feature-card h3{font-family:var(--font-h); font-size:1.08rem; margin-bottom:8px;}
+  .feature-card p{color:var(--text-dim); font-size:.92rem;}
+
+  .flow{padding:90px 0; background:linear-gradient(180deg, transparent, rgba(16,185,129,.04), transparent);}
+  .flow-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:0;}
+  .flow-step{position:relative; padding:0 20px; text-align:center;}
+  .flow-step:not(:last-child)::after{
+    content:''; position:absolute; top:22px; right:-10%; width:20%; height:1px;
+    background:repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 12px);
+  }
+  .flow-num{
+    width:44px; height:44px; border-radius:50%; margin:0 auto 16px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-h); font-weight:700; background:var(--bg-card); border:1px solid var(--primary); color:var(--primary-light);
+  }
+  .flow-step h4{font-family:var(--font-h); font-size:1rem; margin-bottom:6px;}
+  .flow-step p{font-size:.85rem; color:var(--text-dim);}
+
+  .themes{padding:90px 0;}
+  .theme-grid{display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  .theme-card{
+    border-radius:18px; padding:28px; border:1px solid var(--border); position:relative; overflow:hidden;
+  }
+  .theme-card.forest{background:linear-gradient(160deg,#0d1f18,#0a111a);}
+  .theme-card.ramadan{background:linear-gradient(160deg,#1b1230,#0a111a);}
+  .theme-tag{
+    display:inline-block; font-size:.72rem; letter-spacing:.05em; text-transform:uppercase;
+    padding:4px 10px; border-radius:100px; margin-bottom:14px;
+  }
+  .theme-card.forest .theme-tag{background:rgba(16,185,129,.15); color:var(--primary-light);}
+  .theme-card.ramadan .theme-tag{background:rgba(196,132,252,.15); color:#c084fc;}
+  .theme-card h3{font-family:var(--font-h); margin-bottom:8px;}
+  .theme-card p{color:var(--text-dim); font-size:.9rem;}
+
+  .cta{padding:100px 0 120px; text-align:center;}
+  .cta-box{
+    max-width:720px; margin:0 auto; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:26px; padding:56px 40px; position:relative; overflow:hidden;
+  }
+  .cta-box h2{font-family:var(--font-h); font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:14px;}
+  .cta-box p{color:var(--text-dim); margin-bottom:28px;}
+  .cta-actions{display:flex; gap:14px; justify-content:center; flex-wrap:wrap;}
+
+  footer{border-top:1px solid var(--border); padding:34px 0; position:relative; z-index:1;}
+  .footer-row{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;}
+  .footer-row .brand{font-size:1rem;}
+  .footer-links{display:flex; gap:22px; font-size:.85rem; color:var(--text-dim);}
+  .footer-links a:hover{color:var(--text);}
+
+  @media (max-width:900px){
+    .hero-grid{grid-template-columns:1fr;}
+    .feature-grid{grid-template-columns:1fr 1fr;}
+    .flow-grid{grid-template-columns:1fr 1fr; gap:36px 0;}
+    .flow-step::after{display:none;}
+    .theme-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width:600px){
+    .nav-links{display:none;}
+    .feature-grid{grid-template-columns:1fr;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .bloom-field span{animation:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="bloom-field"><span></span><span></span><span></span></div>
+
+<header>
+  <nav>
+    <div class="brand"><img src="logo.png" alt="MindBloom"> MindBloom</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#flow">How it works</a>
+      <a href="#themes">Themes</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="index.html">Sign in</a>
+      <a class="btn btn-primary" href="index.html">Get started</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">🌱 Built for students, by students</span>
+        <h1>Study with clarity, <span class="accent">not chaos.</span></h1>
+        <p class="hero-sub">MindBloom brings your schedule, tasks, and focus time into one calm dashboard — so you spend less time organizing and more time actually studying.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="index.html">Start planning — it's free</a>
+          <a class="btn btn-ghost btn-lg" href="#features">See how it works</a>
+        </div>
+        <p class="hero-note"><strong>No credit card.</strong> Your data stays yours — synced securely to your account.</p>
+      </div>
+
+      <div class="preview-card">
+        <div class="preview-top">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="preview-timer">25:00</div>
+        </div>
+        <div class="preview-row"><span class="time">09:00</span><span class="check"></span><span class="title">Calculus Lecture</span></div>
+        <div class="preview-row cyan"><span class="time">11:30</span><span class="check"></span><span class="title">Lab Report — Chem 201</span></div>
+        <div class="preview-row done gold"><span class="time">14:00</span><span class="check"></span><span class="title">Review flashcards</span></div>
+        <div class="preview-row pink"><span class="time">16:00</span><span class="check"></span><span class="title">Study group — Physics</span></div>
+        <div class="preview-stats">
+          <div class="stat-chip"><b>4</b><span>Events today</span></div>
+          <div class="stat-chip"><b>75%</b><span>Completed</span></div>
+          <div class="stat-chip"><b>2.5h</b><span>Focus time</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Everything in one place</span>
+        <h2>The tools you actually need</h2>
+        <p>No bloat, no distractions — just the handful of features that make a study session go well.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(16,185,129,.15);">📅</div>
+          <h3>Dynamic calendar</h3>
+          <p>View your schedule by day, week, or month, and color-code events by category.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(244,63,94,.15);">⏱️</div>
+          <h3>Pomodoro timer</h3>
+          <p>Customizable work and break intervals keep you focused without burning out.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(6,182,212,.15);">📊</div>
+          <h3>Today's stats</h3>
+          <p>Track completion rate and focus time so you can see your progress at a glance.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(245,158,11,.15);">✅</div>
+          <h3>Quick tasks</h3>
+          <p>Capture small to-dos the moment they come to mind, without leaving your dashboard.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(192,132,252,.15);">🎨</div>
+          <h3>Multiple themes</h3>
+          <p>Switch between Forest and Ramadan themes to match your mood or the season.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(16,185,129,.15);">🔒</div>
+          <h3>Your data, synced</h3>
+          <p>Every account is backed by a real database, so your plan follows you across devices.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="flow" id="flow">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Simple by design</span>
+        <h2>Up and running in a minute</h2>
+      </div>
+      <div class="flow-grid">
+        <div class="flow-step"><div class="flow-num">1</div><h4>Create an account</h4><p>Sign up with your email — no setup required.</p></div>
+        <div class="flow-step"><div class="flow-num">2</div><h4>Add your schedule</h4><p>Drop in lectures, labs, and study blocks.</p></div>
+        <div class="flow-step"><div class="flow-num">3</div><h4>Start a focus session</h4><p>Run the Pomodoro timer while you work.</p></div>
+        <div class="flow-step"><div class="flow-num">4</div><h4>Track your progress</h4><p>Watch your completion rate grow day by day.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="themes" id="themes">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Make it yours</span>
+        <h2>Two looks, one dashboard</h2>
+      </div>
+      <div class="theme-grid">
+        <div class="theme-card forest">
+          <span class="theme-tag">🌿 Forest</span>
+          <h3>Calm & focused</h3>
+          <p>An emerald, low-glare palette designed for long study sessions and late-night review.</p>
+        </div>
+        <div class="theme-card ramadan">
+          <span class="theme-tag">✨ Ramadan</span>
+          <h3>Warm & reflective</h3>
+          <p>A softer, seasonal theme with room for daily duas alongside your study goals.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="wrap">
+      <div class="cta-box">
+        <h2>Ready to bring order to your semester?</h2>
+        <p>Join MindBloom and turn your schedule into something you actually enjoy looking at.</p>
+        <div class="cta-actions">
+          <a class="btn btn-primary btn-lg" href="index.html">Create your free account</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-row">
+    <div class="brand"><img src="logo.png" alt="MindBloom" style="width:26px;height:26px;"> MindBloom</div>
+    <div class="footer-links">
+      <a href="index.html">Dashboard</a>
+      <a href="#features">Features</a>
+      <a href="#themes">Themes</a>
+    </div>
+    <div class="footer-links">Created for the Advanced Agentic Coding course</div>
+  </div>
+</footer>
+
+</body>
+</html>
