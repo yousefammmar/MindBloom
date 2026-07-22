@@ -1,0 +1,5 @@
+node_modules/
+mindbloom.db
+mindbloom.db-shm
+mindbloom.db-wal
+.env

@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Database & local data
+backend/*.db
+backend/*.db-journal
+backend/*.db-shm
+backend/*.db-wal
+
+# Environment
+.env
+backend/.env
+
+# OS files
+.DS_Store
+*.log
