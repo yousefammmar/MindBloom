@@ -36,16 +36,20 @@ The server starts on **http://localhost:4000**:
 A SQLite database file (`backend/mindbloom.db`) is created automatically on
 first run — no external database setup needed.
 
-## Deployment Options
+## Deployment Options (100% Free)
 
-### 1. Full-Stack Cloud Deployment (Backend + SQLite Database)
-To deploy the entire Express backend, SQLite database, and frontend UI to a live URL:
-- **Render**: Connect `https://github.com/yousefammmar/MindBloom` on [Render.com](https://render.com). It will automatically detect `render.yaml` and deploy the live Node.js Express server + SQLite database.
-- **Railway / Koyeb / Fly.io**: Import the GitHub repo and run `npm start`.
+### 1. GitHub Pages (Instant Free Live Demo)
+- **Live URL**: [https://yousefammmar.github.io/MindBloom/](https://yousefammmar.github.io/MindBloom/)
+- **Features**: Pre-built static deployment with zero configuration. Includes a browser-side LocalStorage database fallback so users can interact with all planner features, Pomodoro timer, tasks, and calendar events immediately.
 
-### 2. Static Frontend Deployment (GitHub Pages)
-- **Live Demo**: [https://yousefammmar.github.io/MindBloom/](https://yousefammmar.github.io/MindBloom/)
-- Includes a client-side localStorage fallback for demoing the full interface on static hosting without a backend.
+### 2. Vercel (1-Click Free Full-Stack Serverless)
+- Connect `yousefammmar/MindBloom` on [Vercel.com](https://vercel.com).
+- Uses the included [`vercel.json`](file:///Users/yousefodeh/Downloads/mindbloom/vercel.json) to deploy both the Express API and static frontend automatically.
+
+### 3. Render.com (Express Server + Persistent SQLite DB)
+- Connect `yousefammmar/MindBloom` on [Render.com](https://render.com) via **New + → Blueprint**.
+- Uses [`render.yaml`](file:///Users/yousefodeh/Downloads/mindbloom/render.yaml) to host the full Node.js Express server + SQLite database.
+
 
 
 - **Accounts**: email + password, hashed with bcrypt, sessions via JWT
