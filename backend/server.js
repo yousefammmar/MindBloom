@@ -27,6 +27,11 @@ app.get('/app', (req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 
 app.use(express.static(publicDir, { index: false }));
 
-app.listen(PORT, () => {
-    console.log(`MindBloom server running at http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`MindBloom server running at http://localhost:${PORT}`);
+    });
+}
+
+export default app;
+

@@ -1,9 +1,20 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const db = new Database(path.join(__dirname, 'mindbloom.db'));
+
+let dbPath = path.join(__dirname, 'mindbloom.db');
+
+try {
+    fs.accessSync(__dirname, fs.constants.W_OK);
+} catch {
+    dbPath = path.join('/tmp', 'mindbloom.db');
+}
+
+const db = new Database(dbPath);
+
 
 db.pragma('journal_mode = WAL');
 
